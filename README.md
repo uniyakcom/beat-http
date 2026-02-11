@@ -51,7 +51,7 @@ func main() {
     pub, _ := beathttp.NewPublisher(beathttp.PublisherConfig{
         EndpointURL: "http://localhost:8080",
     })
-    pub.Publish("order.created", message.NewMessage("", []byte(`{"id":1}`)))
+    pub.Publish("order.created", message.New("", []byte(`{"id":1}`)))
 }
 ```
 

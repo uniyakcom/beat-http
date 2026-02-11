@@ -26,7 +26,7 @@ type PublisherConfig struct {
 	EndpointURL string
 
 	// Marshaler 消息序列化器。为 nil 时使用 JSON。
-	Marshaler marshal.Marshaler
+	Marshaler marshal.Codec
 
 	// Client 自定义 HTTP 客户端。为 nil 时使用默认客户端（10s 超时）。
 	Client *http.Client
@@ -34,7 +34,7 @@ type PublisherConfig struct {
 
 func (c *PublisherConfig) defaults() {
 	if c.Marshaler == nil {
-		c.Marshaler = marshal.JSONMarshaler{}
+		c.Marshaler = marshal.JSON{}
 	}
 	if c.Client == nil {
 		c.Client = &http.Client{Timeout: 10 * time.Second}
@@ -44,7 +44,7 @@ func (c *PublisherConfig) defaults() {
 // Publisher HTTP 发布者
 type Publisher struct {
 	endpointURL string
-	marshaler   marshal.Marshaler
+	marshaler   marshal.Codec
 	client      *http.Client
 }
 
@@ -70,7 +70,7 @@ func NewPublisher(cfg PublisherConfig) (*Publisher, error) {
 //	Beat-UUID: <uuid>
 //	Beat-Meta-<key>: <value>
 //	Body: marshaled message
-func (p *Publisher) Publish(topic string, messages ...*message.Message) error {
+func (p *Publisher) Publish(ctx context.Context, topic string, messages ...*message.Message) error {
 	for _, msg := range messages {
 		data, err := p.marshaler.Marshal(topic, msg)
 		if err != nil {
@@ -78,7 +78,7 @@ func (p *Publisher) Publish(topic string, messages ...*message.Message) error {
 		}
 
 		url := p.endpointURL + "/" + topic
-		req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(data))
 		if err != nil {
 			return err
 		}
@@ -114,19 +114,19 @@ type SubscriberConfig struct {
 	ListenAddr string
 
 	// Marshaler 消息反序列化器。为 nil 时使用 JSON。
-	Marshaler marshal.Marshaler
+	Marshaler marshal.Codec
 }
 
 func (c *SubscriberConfig) defaults() {
 	if c.Marshaler == nil {
-		c.Marshaler = marshal.JSONMarshaler{}
+		c.Marshaler = marshal.JSON{}
 	}
 }
 
 // Subscriber HTTP 订阅者
 type Subscriber struct {
 	addr      string
-	marshaler marshal.Marshaler
+	marshaler marshal.Codec
 	server    *http.Server
 	topics    map[string]chan *message.Message
 	done      chan struct{}
